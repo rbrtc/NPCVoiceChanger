@@ -182,6 +182,7 @@ void __stdcall UI::RenderMenu()
     ImGuiMCP::SeparatorText(Strings::Get("ModifiedSection"));
 
     const std::map<std::string, std::string> savedNPCList = Settings::GetSingleton().GetNPCList();
+    std::string toRemove{};
     for (const auto &savedNPC : savedNPCList)
     {
         const std::string name = Settings::GetSingleton().GetNPCName(savedNPC.first);
@@ -197,9 +198,15 @@ void __stdcall UI::RenderMenu()
 
         ImGuiMCP::TextUnformatted(savedNPCInfo.c_str());
         ImGuiMCP::SameLine();
+        ImGuiMCP::PushID(savedNPC.first.c_str());
         if (ImGuiMCP::Button(Strings::Get("DeleteButton")))
         {
-            Settings::GetSingleton().RemoveNPC(savedNPC.first);
+            toRemove = savedNPC.first;
         }
+        ImGuiMCP::PopID();
+    }
+    if (!toRemove.empty())
+    {
+        Settings::GetSingleton().RemoveNPC(toRemove);
     }
 }
