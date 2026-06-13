@@ -4,6 +4,8 @@ This is an SKSE plugin for Skyrim Special Edition that allows the user to change
 the voice type of NPCs during runtime. Settings are saved to a JSON file and it
 is read every time the user loads into a game.
 
+A more detailed description can be found at the [Nexus mod page](https://www.nexusmods.com/skyrimspecialedition/mods/182334).
+
 ## Build Requirements
 * [XMake](https://xmake.io) [3.0.0+]
 * C++23 Compiler (MSVC, Clang-CL)
