@@ -159,7 +159,16 @@ void __stdcall UI::RenderMenu()
 
             const std::string name = selectedNPC->GetName();
             const std::string newVoiceType = clib_util::editorID::get_editorID(selectedVoiceType);
-            const std::string oldVoiceType = clib_util::editorID::get_editorID(selectedNPC->voiceType);
+            std::string oldVoiceType;
+
+            if (selectedNPC->voiceType)
+            {
+                oldVoiceType = clib_util::editorID::get_editorID(selectedNPC->voiceType);
+            }
+            else
+            {
+                oldVoiceType = newVoiceType;
+            }
 
             logger::info("Attempting to add NPC: {} New voice type: {} Old voice type: {}", npcID, newVoiceType,
                          oldVoiceType);
