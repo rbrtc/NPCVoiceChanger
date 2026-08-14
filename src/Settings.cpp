@@ -26,8 +26,6 @@ Settings &Settings::GetSingleton()
 
 void Settings::Load()
 {
-    // TODO: Keep track of loaded NPCs in the UI with an option to remove them
-
     EnsurePluginDirectory();
 
     if (!std::filesystem::exists(jsonFileName))
