@@ -6,7 +6,7 @@ add_requires("simpleini 4.25", "nlohmann_json 3.12.0")
 
 -- set project constants
 set_project("NPCVoiceChanger")
-set_version("1.0.0")
+set_version("1.0.2")
 set_license("GPL-3.0")
 set_languages("c++23")
 set_warnings("less")
