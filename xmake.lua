@@ -17,16 +17,16 @@ add_rules("plugin.vsxmake.autoupdate")
 
 -- define targets
 target("NPCVoiceChanger")
-add_packages("simpleini", "nlohmann_json")
-add_deps("clib-util")
-add_rules("commonlibsse-ng.plugin", {
-	name = "NPCVoiceChanger",
-	author = "rbrtc",
-	description = "Changes voices of NPCs",
-})
+    add_packages("simpleini", "nlohmann_json")
+    add_deps("clib-util")
+    add_rules("commonlibsse-ng.plugin", {
+        name = "NPCVoiceChanger",
+        author = "rbrtc",
+        description = "Changes voices of NPCs",
+    })
 
--- add src files
-add_files("src/**.cpp")
-add_headerfiles("src/**.h")
-add_includedirs("src")
-set_pcxxheader("src/pch.h")
+    -- add src files
+    add_files("src/**.cpp")
+    add_headerfiles("src/**.h")
+    add_includedirs("src")
+    set_pcxxheader("src/pch.h")
