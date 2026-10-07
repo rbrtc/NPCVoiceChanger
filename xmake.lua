@@ -1,5 +1,5 @@
 -- include subprojects
-includes("lib/commonlibsse-ng", "extern/clib-util")
+includes("lib/commonlibsse-ng", "lib/clib-util")
 
 -- packages
 add_requires("simpleini 4.25", "nlohmann_json 3.12.0")
