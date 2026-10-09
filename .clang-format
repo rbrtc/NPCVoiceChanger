@@ -2,3 +2,4 @@ BasedOnStyle: Microsoft
 NamespaceIndentation: All
 SortIncludes: Never
 AllowShortFunctionsOnASingleLine: InlineOnly
+PointerAlignment: Left
