@@ -1,25 +1,30 @@
 #pragma once
 
+#include <map>
+#include <string>
+
 class Settings
 {
   public:
-    static Settings &GetSingleton();
+    static void Load();
+    static void AddNPC(const std::string& npcID, const std::string& newVoiceType, const std::string& oldVoiceType,
+                       const std::string& name);
+    static void RemoveNPC(const std::string& npcID);
+    static std::string GetNPCName(const std::string& npcID);
+    static const std::map<std::string, std::string>& GetNPCList() { return savedNPCList; }
+    static bool IsJsonValid(const std::string& fileName);
+    static void UpdateDelay();
 
-    void Load();
-    void AddNPC(const std::string &npcID, const std::string &newVoiceType, const std::string &oldVoiceType,
-                const std::string &name);
-    void RemoveNPC(const std::string &npcID);
-
-    const std::string GetNPCName(const std::string &npcID) const;
-    const std::map<std::string, std::string> GetNPCList() const
-    {
-        return savedNPCList;
-    }
+    static inline unsigned delay{};
 
   private:
     Settings() = default;
+    Settings(const Settings&) = delete;
+    Settings(Settings&&) = delete;
+    Settings& operator=(const Settings&) = delete;
+    Settings& operator=(Settings&&) = delete;
 
-    const bool IsJsonValid() const;
-    const std::string jsonFileName = "Data/SKSE/Plugins/NPCVoiceChanger.json";
-    std::map<std::string, std::string> savedNPCList;
+    static inline const std::string settingsFile = "Data/SKSE/Plugins/NPCVoiceChanger.json";
+    // key: npcID, value: newVoiceType
+    static inline std::map<std::string, std::string> savedNPCList{};
 };

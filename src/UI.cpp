@@ -1,33 +1,25 @@
 #include "UI.h"
 #include "SKSEMenuFramework.h"
 #include "Strings.h"
+#include "Settings.h"
 #include "Utils.h"
-#include "VoiceTypeRegistry.h"
 #include "pch.h"
 #include <CLIBUtil/editorID.hpp>
+#include <CLIBUtil/string.hpp>
 
-namespace
+// Pushes the help marker to the right edge of the window
+// and displays a tooltip with the text parameter
+void UI::PrintHelpMarker(const char* text)
 {
-char voiceTypeFilterBuffer[256]{};
-char voiceTypeDropdownBuffer[256]{};
-char refBuffer[256]{};
-char voiceTypeBuffer[256]{};
+    const float textWidth = ImGuiMCP::CalcTextSize(helpMarker.c_str()).x;
+    const float availWidth = ImGuiMCP::GetContentRegionAvail().x;
+    ImGuiMCP::SetCursorPosX(ImGuiMCP::GetCursorPosX() + (availWidth - textWidth));
+    ImGuiMCP::TextDisabled("%s", helpMarker.c_str());
 
-RE::TESNPC *selectedNPC{nullptr};
-RE::BGSVoiceType *selectedVoiceType{nullptr};
-
-} // namespace
-
-void UI::HelpMarker(const char *a_desc)
-{
-    ImGuiMCP::PushStyleColor(ImGuiMCP::ImGuiCol_Text, ImGuiMCP::ImVec4{0.55f, 0.55f, 0.55f, 1.0f});
-    ImGuiMCP::TextUnformatted("(?)");
-    ImGuiMCP::PopStyleColor();
-    if (ImGuiMCP::IsItemHovered())
+    if (ImGuiMCP::BeginItemTooltip())
     {
-        ImGuiMCP::BeginTooltip();
-        ImGuiMCP::PushTextWrapPos(ImGuiMCP::GetFontSize() * 28.0f);
-        ImGuiMCP::TextUnformatted(a_desc);
+        ImGuiMCP::PushTextWrapPos(ImGuiMCP::GetFontSize() * 35.0f);
+        ImGuiMCP::TextUnformatted(text);
         ImGuiMCP::PopTextWrapPos();
         ImGuiMCP::EndTooltip();
     }
@@ -44,107 +36,126 @@ void UI::Register()
     SKSEMenuFramework::SetSection(Strings::Get("ModName"));
     SKSEMenuFramework::AddSectionItem(Strings::Get("SettingsLabel"), RenderMenu);
     logger::info("UI: registered with SKSE Menu Framework");
+    BuildCache();
 }
 
 void __stdcall UI::RenderMenu()
 {
-    auto &settings = Settings::GetSingleton();
-    auto &voiceTypeRegistry = VoiceTypeRegistry::GetSingleton();
-
     // NPC Selection
 
     ImGuiMCP::SeparatorText(Strings::Get("NPCSection"));
 
+    static std::string refDisplayText{};
+    static std::string vtDisplayText{};
+    static std::string vtEditorID{};
+    static const std::string dynamicFormWarning = Strings::Get("DynamicFormWarning");
+    static RE::TESNPC* selectedNPC{};
+
     if (ImGuiMCP::Button(Strings::Get("RefButton")))
     {
-        const auto &ref = RE::Console::GetSelectedRef();
+        selectedNPC = nullptr;
+        refDisplayText = "";
+        vtDisplayText = "";
+        vtEditorID = "";
 
-        if (!ref)
+        if (const auto& ref = RE::Console::GetSelectedRef())
         {
-            std::strncpy(refBuffer, Strings::Get("NoRefError"), sizeof(refBuffer) - 1);
-            refBuffer[sizeof(refBuffer) - 1] = '\0';
-        }
-        else
-        {
-            RE::Actor *actorRef = ref->As<RE::Actor>();
-
-            if (actorRef)
+            if (auto* actorRef = ref->As<RE::Actor>())
             {
                 selectedNPC = actorRef->GetActorBase();
-                std::string npcInfo = selectedNPC->GetName();
+                if (selectedNPC)
+                {
+                    refDisplayText = std::format("{} {}", selectedNPC->GetName(), Strings::Get("NPCSelectedText"));
 
-                npcInfo += std::format(" {}", Strings::Get("NPCSelectedText"));
-
-                std::strncpy(refBuffer, npcInfo.c_str(), sizeof(refBuffer) - 1);
-                refBuffer[sizeof(refBuffer) - 1] = '\0';
+                    if (selectedNPC->voiceType)
+                    {
+                        vtEditorID = clib_util::editorID::get_editorID(selectedNPC->voiceType);
+                        vtDisplayText = std::format("{}: {}", Strings::Get("CurrentVT"), vtEditorID);
+                    }
+                    else
+                    {
+                        vtEditorID = "";
+                        vtDisplayText = std::format("{}: {}", Strings::Get("CurrentVT"), Strings::Get("Unknown"));
+                    }
+                }
+                else
+                {
+                    logger::error("{} could not be casted to TESNPC", actorRef->GetName());
+                }
             }
             else
             {
-                std::strncpy(refBuffer, Strings::Get("NotNPCError"), sizeof(refBuffer) - 1);
-                refBuffer[sizeof(refBuffer) - 1] = '\0';
+                refDisplayText = Strings::Get("NotNPCError");
             }
-        }
-    }
-    ImGuiMCP::SameLine();
-    HelpMarker(Strings::Get("RefHelp"));
-    ImGuiMCP::TextUnformatted(refBuffer);
-
-    ImGuiMCP::SeparatorText(Strings::Get("VoiceTypeSection"));
-
-    ImGuiMCP::TextUnformatted(Strings::Get("VoiceTypeFilter"));
-    ImGuiMCP::SameLine();
-    ImGuiMCP::SetNextItemWidth(ImGuiMCP::GetWindowWidth() * 0.35f);
-    ImGuiMCP::InputText("##voiceType_filter", voiceTypeFilterBuffer, sizeof(voiceTypeFilterBuffer));
-    ImGuiMCP::SameLine();
-    HelpMarker(Strings::Get("VoiceTypeFilterHelp"));
-
-    // Voice Type Section
-
-    const auto voiceTypeMatches = voiceTypeRegistry.Filter(voiceTypeFilterBuffer);
-    const auto &voiceTypeEntries = voiceTypeRegistry.GetEntries();
-    const char *voiceTypePreview =
-        voiceTypeDropdownBuffer[0] != '\0' ? voiceTypeDropdownBuffer : Strings::Get("VoiceTypeError");
-
-    ImGuiMCP::TextUnformatted(Strings::Get("VoiceTypeDropdown"));
-    ImGuiMCP::SameLine();
-    ImGuiMCP::SetNextItemWidth(ImGuiMCP::GetWindowWidth() * 0.45f);
-    if (ImGuiMCP::BeginCombo("##voiceType_dropdown", voiceTypePreview, ImGuiMCP::ImGuiComboFlags_HeightLarge))
-    {
-        if (voiceTypeMatches.empty())
-        {
-            (void)ImGuiMCP::Selectable(Strings::Get("NoVoiceTypeMatches"), false,
-                                       ImGuiMCP::ImGuiSelectableFlags_Disabled);
         }
         else
         {
-            for (const std::size_t index : voiceTypeMatches)
-            {
-                const auto &entry = voiceTypeEntries[index];
-                // displayName is file name in this case
-                std::string voiceTypeDisplayed = entry.editorID + " | " + entry.displayName;
+            refDisplayText = Strings::Get("NoRefError");
+        }
+    }
+    ImGuiMCP::SameLine();
+    PrintHelpMarker(Strings::Get("RefHelp"));
 
-                if (ImGuiMCP::Selectable(voiceTypeDisplayed.c_str(), false))
+    if (!refDisplayText.empty())
+    {
+        ImGuiMCP::TextUnformatted(refDisplayText.c_str());
+    }
+    if (!vtDisplayText.empty())
+    {
+        ImGuiMCP::TextUnformatted(vtDisplayText.c_str());
+    }
+    if (selectedNPC && selectedNPC->IsDynamicForm())
+    {
+        ImGuiMCP::TextUnformatted(dynamicFormWarning.c_str());
+    }
+    ImGuiMCP::NewLine();
+
+    // Voice Type Section
+
+    ImGuiMCP::SeparatorText(Strings::Get("VoiceTypeSection"));
+
+    static std::string selectedEntry{};
+
+    if (ImGuiMCP::BeginCombo("##vtList", selectedEntry.c_str()))
+    {
+        static ImGuiMCP::ImGuiTextFilter vtFilter{};
+        if (ImGuiMCP::IsWindowAppearing())
+        {
+            ImGuiMCP::SetKeyboardFocusHere();
+            vtFilter.Clear();
+        }
+        ImGuiMCP::SetNextItemShortcut(ImGuiMCP::ImGuiMod_Ctrl | ImGuiMCP::ImGuiKey_F);
+        vtFilter.Draw("##vtFilter", -FLT_MIN);
+
+        for (const auto& voiceType : voiceTypeList)
+        {
+            const bool isSelected = selectedEntry == voiceType;
+
+            if (vtFilter.PassFilter(voiceType.c_str()))
+            {
+                if (ImGuiMCP::Selectable(voiceType.c_str(), isSelected))
                 {
-                    std::strncpy(voiceTypeDropdownBuffer, entry.editorID.c_str(), sizeof(voiceTypeDropdownBuffer) - 1);
-                    voiceTypeDropdownBuffer[sizeof(voiceTypeDropdownBuffer) - 1] = '\0';
-                    selectedVoiceType = RE::TESForm::LookupByID<RE::BGSVoiceType>(entry.formID);
-                    std::strncpy(voiceTypeBuffer, "", sizeof(voiceTypeBuffer) - 1);
-                    voiceTypeBuffer[sizeof(voiceTypeBuffer) - 1] = '\0';
+                    selectedEntry = voiceType;
                 }
             }
         }
         ImGuiMCP::EndCombo();
     }
 
-    ImGuiMCP::SameLine();
-    HelpMarker(Strings::Get("VoiceTypeDropdownHelp"));
-
     // Save button
+
+    static std::string saveDisplayText{};
+    static RE::BGSVoiceType* selectedVoiceType{};
 
     ImGuiMCP::SameLine();
 
     if (ImGuiMCP::Button(Strings::Get("SaveLabel")))
     {
+        if (!selectedEntry.empty())
+        {
+            const auto splitStrings = clib_util::string::split(selectedEntry, " | ");
+            selectedVoiceType = RE::TESForm::LookupByEditorID<RE::BGSVoiceType>(splitStrings[0]);
+        }
         if (selectedNPC && selectedVoiceType)
         {
             // Get orignal voice type before switching to new one,
@@ -153,49 +164,78 @@ void __stdcall UI::RenderMenu()
             std::string npcID = clib_util::editorID::get_editorID(selectedNPC);
             if (npcID.empty())
             {
-                logger::warn("Selected NPC does not have an editor ID! Attempting to use form ID instead.");
                 npcID = Utils::NormalizeFormID(selectedNPC->GetAsForm());
             }
 
             const std::string name = selectedNPC->GetName();
             const std::string newVoiceType = clib_util::editorID::get_editorID(selectedVoiceType);
-            std::string oldVoiceType;
-
-            if (selectedNPC->voiceType)
-            {
-                oldVoiceType = clib_util::editorID::get_editorID(selectedNPC->voiceType);
-            }
-            else
-            {
-                oldVoiceType = newVoiceType;
-            }
+            const std::string oldVoiceType =
+                selectedNPC->voiceType ? clib_util::editorID::get_editorID(selectedNPC->voiceType) : "";
 
             logger::info("Attempting to add NPC: {} New voice type: {} Old voice type: {}", npcID, newVoiceType,
                          oldVoiceType);
-            Settings::GetSingleton().AddNPC(npcID, newVoiceType, oldVoiceType, name);
+
+            if (!selectedNPC->IsDynamicForm())
+            {
+                Settings::AddNPC(npcID, newVoiceType, oldVoiceType, name);
+            }
+            else
+            {
+                logger::info("Skipped adding {} to the settings file because it is a dynamic form.", npcID);
+            }
 
             selectedNPC->voiceType = selectedVoiceType;
+            vtEditorID = newVoiceType;
+            vtDisplayText = std::format("{}: {}", Strings::Get("CurrentVT"), vtEditorID);
+        }
+        else if (!selectedNPC && !selectedVoiceType)
+        {
+            saveDisplayText = std::format("{}\n{}", Strings::Get("VoiceTypeError"), Strings::Get("NoRefError"));
         }
         else if (!selectedVoiceType)
         {
-            std::strncpy(voiceTypeBuffer, Strings::Get("VoiceTypeError"), sizeof(voiceTypeBuffer) - 1);
-            voiceTypeBuffer[sizeof(voiceTypeBuffer) - 1] = '\0';
+            saveDisplayText = Strings::Get("VoiceTypeError");
+        }
+        else if (!selectedNPC)
+        {
+            saveDisplayText = Strings::Get("NoRefError");
         }
     }
 
-    // Voice type error message
-    ImGuiMCP::TextUnformatted(voiceTypeBuffer);
+    ImGuiMCP::SameLine();
+    PrintHelpMarker(Strings::Get("VoiceTypeDropdownHelp"));
+
+    if (!saveDisplayText.empty())
+    {
+        ImGuiMCP::TextUnformatted(saveDisplayText.c_str());
+    }
+    ImGuiMCP::NewLine();
+
+    // Input for delay
+
+    ImGuiMCP::SeparatorText(Strings::Get("Delay"));
+
+    static const unsigned step{1};
+    ImGuiMCP::SetNextItemWidth(250.0f);
+    if (ImGuiMCP::InputScalar("##delayInput", ImGuiMCP::ImGuiDataType_U32, &Settings::delay, &step))
+    {
+        Settings::UpdateDelay();
+    }
+    ImGuiMCP::SameLine();
+    PrintHelpMarker(Strings::Get("DelayHelp"));
+    ImGuiMCP::NewLine();
 
     // Modified NPCs Section
 
     ImGuiMCP::SeparatorText(Strings::Get("ModifiedSection"));
 
-    const std::map<std::string, std::string> savedNPCList = Settings::GetSingleton().GetNPCList();
+    // key: npcID, value: newVoiceType
+    const std::map<std::string, std::string> savedNPCList = Settings::GetNPCList();
     std::string toRemove{};
-    for (const auto &savedNPC : savedNPCList)
+    for (const auto& savedNPC : savedNPCList)
     {
-        const std::string name = Settings::GetSingleton().GetNPCName(savedNPC.first);
-        std::string savedNPCInfo;
+        const std::string name = Settings::GetNPCName(savedNPC.first);
+        std::string savedNPCInfo{};
         if (!name.empty())
         {
             savedNPCInfo = name + " | " + savedNPC.first + " | " + savedNPC.second;
@@ -208,7 +248,8 @@ void __stdcall UI::RenderMenu()
         ImGuiMCP::TextUnformatted(savedNPCInfo.c_str());
         ImGuiMCP::SameLine();
         ImGuiMCP::PushID(savedNPC.first.c_str());
-        if (ImGuiMCP::Button(Strings::Get("DeleteButton")))
+
+        if (ImGuiMCP::Button("X"))
         {
             toRemove = savedNPC.first;
         }
@@ -216,6 +257,44 @@ void __stdcall UI::RenderMenu()
     }
     if (!toRemove.empty())
     {
-        Settings::GetSingleton().RemoveNPC(toRemove);
+        Settings::RemoveNPC(toRemove);
+
+        if (!selectedNPC)
+        {
+            return;
+        }
+
+        // Updates the currently selected NPC's displayed voice type
+
+        const std::string npcID = clib_util::editorID::get_editorID(selectedNPC);
+        if (npcID != toRemove)
+        {
+            return;
+        }
+
+        const std::string currentVT =
+            selectedNPC->voiceType ? clib_util::editorID::get_editorID(selectedNPC->voiceType) : "";
+        if (currentVT != vtEditorID)
+        {
+            vtEditorID = currentVT;
+            vtDisplayText = std::format("{}: {}", Strings::Get("CurrentVT"),
+                                        vtEditorID.empty() ? Strings::Get("Unknown") : vtEditorID);
+        }
     }
+}
+
+void UI::BuildCache()
+{
+    const auto allVoiceTypes = RE::TESDataHandler::GetSingleton()->GetFormArray<RE::BGSVoiceType>();
+    for (const auto& voiceType : allVoiceTypes)
+    {
+        const std::string editorID = clib_util::editorID::get_editorID(voiceType);
+        if (!editorID.empty())
+        {
+            const std::string fileName = static_cast<std::string>(voiceType->GetFile()->GetFilename());
+            voiceTypeList.push_back(editorID + " | " + fileName);
+        }
+    }
+
+    std::sort(voiceTypeList.begin(), voiceTypeList.end());
 }

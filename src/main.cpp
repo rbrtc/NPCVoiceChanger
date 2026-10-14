@@ -1,32 +1,32 @@
 #include "Settings.h"
 #include "Strings.h"
 #include "UI.h"
-#include "VoiceTypeRegistry.h"
 #include "logger.h"
 #include "pch.h"
+#include "Tasker.hpp"
 
-void OnMessage(SKSE::MessagingInterface::Message *message)
+void OnMessage(SKSE::MessagingInterface::Message* message)
 {
     switch (message->type)
     {
     case SKSE::MessagingInterface::kDataLoaded:
         Strings::Load();
-        VoiceTypeRegistry::GetSingleton().BuildCache();
         UI::Register();
-        break;
-    case SKSE::MessagingInterface::kPreLoadGame:
-        break;
-    case SKSE::MessagingInterface::kPostLoadGame:
-        Settings::GetSingleton().Load();
+        Settings::Load();
         break;
     case SKSE::MessagingInterface::kNewGame:
+    case SKSE::MessagingInterface::kPostLoadGame:
+        if (Settings::delay > 0)
+        {
+            clib_utilsQTR::Tasker::GetSingleton()->PushTask([] { Settings::Load(); }, Settings::delay * 1000);
+        }
         break;
     default:
         break;
     }
 }
 
-SKSEPluginLoad(const SKSE::LoadInterface *skse)
+SKSEPluginLoad(const SKSE::LoadInterface* skse)
 {
     SetupLog();
     logger::info("Plugin loaded");

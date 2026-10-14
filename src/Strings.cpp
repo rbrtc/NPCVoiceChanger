@@ -1,64 +1,53 @@
 #include "Strings.h"
 #include "pch.h"
-#include <SimpleIni.h>
-
-std::unordered_map<std::string, std::string> Strings::_map;
+#include "Settings.h"
+#include <nlohmann/json.hpp>
+#include <unordered_map>
 
 void Strings::Load()
 {
-    _map.clear();
+    stringMap["ModName"] = "NPC Voice Changer";
+    stringMap["SettingsLabel"] = "Settings";
+    stringMap["Delay"] = "Delay";
+    stringMap["DelayHelp"] = "Adds a delay to the settings load after loading the game. Intended for loading after "
+                             "other mods that alter voice types on game load.";
+    stringMap["NPCSection"] = "NPC Selection";
+    stringMap["VoiceTypeSection"] = "Voice Type Selection";
+    stringMap["VoiceTypeDropdownHelp"] = "Select a voice type from the dropdown list.";
+    stringMap["SaveLabel"] = "Save";
+    stringMap["RefButton"] = "Get Selected NPC from the Console";
+    stringMap["RefHelp"] = "Get the selected reference from the console. Make sure you are selecting an NPC.";
+    stringMap["NoRefError"] = "No NPC selected";
+    stringMap["NotNPCError"] = "Selected ref is not an NPC!";
+    stringMap["NPCSelectedText"] = "selected.";
+    stringMap["VoiceTypeError"] = "No voice type selected";
+    stringMap["ModifiedSection"] = "Modified NPCs";
+    stringMap["CurrentVT"] = "Current voice type";
+    stringMap["Unknown"] = "Unknown";
+    stringMap["DynamicFormWarning"] =
+        "Warning: the selected NPC is a dynamic form. Changes to its voice type will not be saved.";
 
-    _map["ModName"] = "NPC Voice Changer";
-    _map["SettingsLabel"] = "Settings";
-    _map["NPCSection"] = "NPC Selection";
-    _map["VoiceTypeSection"] = "Voice Type Selection";
-    _map["VoiceTypeFilter"] = "Voice Type Filter";
-    _map["VoiceTypeFilterHelp"] = "Type part of a voice type editorID or filename to filter the dropdown list below.";
-    _map["VoiceTypeDropdown"] = "Voice Type";
-    _map["VoiceTypeDropdownHelp"] = "Select a voice type from the dropdown list.";
-    _map["NoVoiceTypeMatches"] = "<no cached voice type matches>";
-    _map["SaveLabel"] = "Save";
-    _map["RefButton"] = "Get Selected NPC from the Console";
-    _map["NoRefError"] = "No NPC selected";
-    _map["NotNPCError"] = "Selected ref is not an NPC!";
-    _map["NPCSelectedText"] = "selected.";
-    _map["RefHelp"] = "Get the selected reference from the console. Make sure you are selecting an NPC.";
-    _map["VoiceTypeError"] = "No voice type selected";
-    _map["ModifiedSection"] = "NPCs Modified";
-    _map["DeleteButton"] = "X";
-
-    constexpr auto path = "Data/SKSE/Plugins/NPCVoiceChanger_Translation.ini";
-    if (!std::filesystem::exists(path))
+    constexpr auto path = "Data/SKSE/Plugins/NPCVoiceChanger_Translation.json";
+    if (!Settings::IsJsonValid(path))
     {
-        logger::info("Strings: translation file missing, using built-in English");
+        logger::warn("Translation file missing or JSON parse error detected. Using built-in English.");
         return;
     }
 
-    CSimpleIniA ini;
-    ini.SetUnicode();
-    if (ini.LoadFile(path) != SI_OK)
-    {
-        logger::warn("Strings: translation file exists but failed to parse");
-        return;
-    }
+    json translations{};
+    std::ifstream jsonFile{path};
+    jsonFile >> translations;
 
-    CSimpleIniA::TNamesDepend keys;
-    if (ini.GetAllKeys("Strings", keys))
+    for (const auto& [key, value] : translations.items())
     {
-        for (const auto &key : keys)
-        {
-            if (const char *val = ini.GetValue("Strings", key.pItem))
-            {
-                _map[key.pItem] = val;
-            }
-        }
+        stringMap[key] = value;
     }
 
     logger::info("Strings: translation overrides loaded");
 }
 
-const char *Strings::Get(std::string_view a_key)
+const char* Strings::Get(const std::string& key)
 {
-    const auto it = _map.find(std::string(a_key));
-    return it != _map.end() ? it->second.c_str() : "";
+    const auto it = stringMap.find(key);
+    return it != stringMap.end() ? it->second.c_str() : "";
 }

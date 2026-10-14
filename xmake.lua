@@ -2,11 +2,11 @@
 includes("lib/commonlibsse-ng", "lib/clib-util")
 
 -- packages
-add_requires("simpleini 4.25", "nlohmann_json 3.12.0")
+add_requires("nlohmann_json 3.12.0")
 
 -- set project constants
 set_project("NPCVoiceChanger")
-set_version("1.0.2")
+set_version("1.1.0")
 set_license("GPL-3.0")
 set_languages("c++23")
 set_warnings("less")
@@ -17,7 +17,7 @@ add_rules("plugin.vsxmake.autoupdate")
 
 -- define targets
 target("NPCVoiceChanger")
-    add_packages("simpleini", "nlohmann_json")
+    add_packages("nlohmann_json")
     add_deps("clib-util")
     add_rules("commonlibsse-ng.plugin", {
         name = "NPCVoiceChanger",

@@ -3,73 +3,46 @@
 #include "Utils.h"
 #include "pch.h"
 
-namespace
-{
-
-void EnsurePluginDirectory()
-{
-    std::error_code ec;
-    std::filesystem::create_directories(L"Data/SKSE/Plugins", ec);
-    if (ec)
-    {
-        logger::warn("Settings: failed to create Data/SKSE/Plugins: {}", ec.message());
-    }
-}
-
-} // namespace
-
-Settings &Settings::GetSingleton()
-{
-    static Settings settings;
-    return settings;
-}
-
 void Settings::Load()
 {
-    EnsurePluginDirectory();
-
-    if (!std::filesystem::exists(jsonFileName))
+    if (!std::filesystem::exists(settingsFile))
     {
-        logger::info("NPCVoiceChanger.json not found. Skipping settings load.");
+        logger::info("NPCVoiceChanger.json not found. Creating new file.");
+        std::ofstream newFile{settingsFile};
+        json settings{};
+        settings["delay"] = delay;
+        newFile << std::setw(4) << settings;
         return;
     }
-    if (!IsJsonValid())
+    if (!IsJsonValid(settingsFile))
     {
         logger::info("Invalid json file. Skipping settings load.");
         return;
     }
 
-    std::ifstream jsonFile(jsonFileName);
+    std::ifstream jsonFile{settingsFile};
 
-    json settings;
+    json settings{};
     jsonFile >> settings;
     jsonFile.close();
 
-    for (auto &[key, value] : settings.items())
+    for (const auto& [key, value] : settings.items())
     {
-        std::string npcID = key;
+        if (key == "delay")
+        {
+            delay = value.get<unsigned>();
+            continue;
+        }
+
+        const std::string npcID = key;
         const std::string newVoiceType = settings[npcID]["newVoiceType"].get<std::string>();
         const std::string oldVoiceType = settings[npcID]["oldVoiceType"].get<std::string>();
-
-        if (npcID.empty())
-        {
-            logger::warn("NPC ID is empty, skipping load of NPC.");
-            continue;
-        }
-
-        if (newVoiceType.empty() || oldVoiceType.empty())
-        {
-            logger::warn("{} for {} is empty, skipping load of NPC.",
-                         newVoiceType.empty() ? "newVoiceType" : "oldVoiceType", npcID);
-            continue;
-        }
-
-        RE::TESNPC *npc;
+        RE::TESNPC* npc{};
 
         // Delimiter for form IDs
         if (npcID.contains('~'))
         {
-            RE::TESForm *npcForm = Utils::GetFormFromString(npcID);
+            RE::TESForm* npcForm = Utils::GetFormFromString(npcID);
             if (!npcForm)
             {
                 logger::warn("Invalid form ID: {}, skipping load of NPC.", npcID);
@@ -88,18 +61,16 @@ void Settings::Load()
             npc = RE::TESForm::LookupByEditorID<RE::TESNPC>(npcID.c_str());
             if (!npc)
             {
-                logger::warn("Invalid NPC pointer when trying to look up editor ID, skipping load of NPC: {}.", npcID);
+                logger::warn("Invalid NPC Editor ID: ", npcID);
                 continue;
             }
         }
 
-        RE::BGSVoiceType *voiceType = RE::TESForm::LookupByEditorID<RE::BGSVoiceType>(newVoiceType.c_str());
+        RE::BGSVoiceType* voiceType{};
 
-        if (!voiceType)
+        if (!newVoiceType.empty())
         {
-            logger::warn("Invalid voice type pointer for NPC: {} with voice type: {}. Skipping load of NPC.", npcID,
-                         newVoiceType);
-            continue;
+            voiceType = RE::TESForm::LookupByEditorID<RE::BGSVoiceType>(newVoiceType.c_str());
         }
 
         npc->voiceType = voiceType;
@@ -107,8 +78,8 @@ void Settings::Load()
     }
 }
 
-void Settings::AddNPC(const std::string &npcID, const std::string &newVoiceType, const std::string &oldVoiceType,
-                      const std::string &name)
+void Settings::AddNPC(const std::string& npcID, const std::string& newVoiceType, const std::string& oldVoiceType,
+                      const std::string& name)
 {
     if (npcID.empty())
     {
@@ -116,14 +87,15 @@ void Settings::AddNPC(const std::string &npcID, const std::string &newVoiceType,
         return;
     }
 
-    json settings, temp;
+    json settings{};
+    json temp{};
 
     temp[npcID]["newVoiceType"] = newVoiceType;
     temp[npcID]["name"] = name;
 
-    if (IsJsonValid())
+    if (IsJsonValid(settingsFile))
     {
-        std::ifstream jsonInput(jsonFileName);
+        std::ifstream jsonInput(settingsFile);
         jsonInput >> settings;
         if (settings.contains(npcID))
         {
@@ -142,38 +114,37 @@ void Settings::AddNPC(const std::string &npcID, const std::string &newVoiceType,
         settings = temp;
     }
 
-    std::ofstream jsonOutput(jsonFileName);
+    std::ofstream jsonOutput(settingsFile);
     jsonOutput << std::setw(4) << settings;
-    jsonOutput.close();
     logger::info("Added NPC: {}, New voice type: {}, Original voice type: {}", npcID, newVoiceType,
                  settings[npcID]["oldVoiceType"].get<std::string>());
     savedNPCList[npcID] = newVoiceType;
 }
 
-void Settings::RemoveNPC(const std::string &npcID)
+void Settings::RemoveNPC(const std::string& npcID)
 {
-    if (!IsJsonValid())
+    if (!IsJsonValid(settingsFile))
     {
         logger::warn("Remove NPC operation cancelled: json is invalid.");
         return;
     }
 
-    json settings;
-    std::ifstream jsonInput(jsonFileName);
+    json settings{};
+    std::ifstream jsonInput(settingsFile);
     jsonInput >> settings;
     jsonInput.close();
 
     // Reassign original voice type to NPC
 
-    RE::TESNPC *npc;
-    RE::BGSVoiceType *voiceType;
+    RE::TESNPC* npc{};
+    RE::BGSVoiceType* voiceType{};
 
     // Delimiter for form IDs
     if (npcID.contains('~'))
     {
         // Checks are skipped here because Load() will only store valid NPCs
 
-        RE::TESForm *npcForm = Utils::GetFormFromString(npcID);
+        RE::TESForm* npcForm = Utils::GetFormFromString(npcID);
         npc = npcForm->As<RE::TESNPC>();
     }
     else
@@ -181,62 +152,77 @@ void Settings::RemoveNPC(const std::string &npcID)
         npc = RE::TESForm::LookupByEditorID<RE::TESNPC>(npcID.c_str());
     }
 
-    voiceType =
-        RE::TESForm::LookupByEditorID<RE::BGSVoiceType>(settings[npcID]["oldVoiceType"].get<std::string>().c_str());
-
-    if (npc && voiceType)
+    if (!npc)
     {
-        npc->voiceType = voiceType;
-    }
-    else
-    {
-        logger::warn("Removal failed for {}. Invalid NPC and/or voice type pointer.", npcID);
+        logger::error("Removal failed for {}. Invalid NPC pointer.", npcID);
         return;
     }
 
+    const std::string oldVoiceType = settings[npcID]["oldVoiceType"].get<std::string>();
+    if (!oldVoiceType.empty())
+    {
+        voiceType = RE::TESForm::LookupByEditorID<RE::BGSVoiceType>(oldVoiceType.c_str());
+    }
+    else
+    {
+        voiceType = nullptr;
+    }
+
+    npc->voiceType = voiceType;
+
     settings.erase(npcID);
     savedNPCList.erase(npcID);
-    std::ofstream jsonOutput(jsonFileName);
+    std::ofstream jsonOutput(settingsFile);
     jsonOutput << std::setw(4) << settings;
-    jsonOutput.close();
 }
 
-const bool Settings::IsJsonValid() const
+bool Settings::IsJsonValid(const std::string& fileName)
 {
-    if (std::filesystem::exists(jsonFileName))
+    if (std::filesystem::exists(fileName))
     {
-        std::ifstream jsonInput(jsonFileName);
+        std::ifstream jsonInput(fileName);
         if (json::accept(jsonInput))
         {
             jsonInput.close();
-            jsonInput.open(jsonFileName);
+            jsonInput.open(fileName);
             if (!json::parse(jsonInput, nullptr, false).is_discarded())
             {
-                jsonInput.close();
                 return true;
             }
         }
-        jsonInput.close();
     }
     return false;
 }
 
-const std::string Settings::GetNPCName(const std::string &npcID) const
+std::string Settings::GetNPCName(const std::string& npcID)
 {
-    json settings;
-    std::ifstream jsonInput(jsonFileName);
-
-    if (IsJsonValid())
+    if (IsJsonValid(settingsFile))
     {
+        std::ifstream jsonInput{settingsFile};
+        json settings{};
         jsonInput >> settings;
-
         if (settings.contains(npcID))
         {
-            jsonInput.close();
             return settings[npcID]["name"].get<std::string>();
         }
     }
-
-    jsonInput.close();
     return "";
+}
+
+void Settings::UpdateDelay()
+{
+    if (!IsJsonValid(settingsFile))
+    {
+        logger::error("Error: invalid settings file.");
+        return;
+    }
+
+    std::ifstream jsonInput{settingsFile};
+    json settings{};
+    jsonInput >> settings;
+    jsonInput.close();
+    settings["delay"] = delay;
+
+    std::ofstream jsonOutput{settingsFile};
+    jsonOutput << std::setw(4) << settings;
 }
