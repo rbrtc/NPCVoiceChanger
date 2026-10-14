@@ -122,7 +122,6 @@ void __stdcall UI::RenderMenu()
         if (ImGuiMCP::IsWindowAppearing())
         {
             ImGuiMCP::SetKeyboardFocusHere();
-            vtFilter.Clear();
         }
         ImGuiMCP::SetNextItemShortcut(ImGuiMCP::ImGuiMod_Ctrl | ImGuiMCP::ImGuiKey_F);
         vtFilter.Draw("##vtFilter", -FLT_MIN);
