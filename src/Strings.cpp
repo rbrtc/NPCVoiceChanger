@@ -9,8 +9,8 @@ void Strings::Load()
     stringMap["ModName"] = "NPC Voice Changer";
     stringMap["SettingsLabel"] = "Settings";
     stringMap["Delay"] = "Delay";
-    stringMap["DelayHelp"] = "Adds a delay to the settings load after loading the game. Intended for loading after "
-                             "other mods that alter voice types on game load.";
+    stringMap["DelayHelp"] = "Loads the settings X seconds after loading a game.";
+    stringMap["Seconds"] = "Seconds";
     stringMap["NPCSection"] = "NPC Selection";
     stringMap["VoiceTypeSection"] = "Voice Type Selection";
     stringMap["VoiceTypeDropdownHelp"] = "Select a voice type from the dropdown list.";

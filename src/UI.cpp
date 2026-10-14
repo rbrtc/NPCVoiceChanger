@@ -215,12 +215,14 @@ void __stdcall UI::RenderMenu()
 
     ImGuiMCP::SeparatorText(Strings::Get("Delay"));
 
-    static const unsigned step{1};
-    ImGuiMCP::SetNextItemWidth(250.0f);
-    if (ImGuiMCP::InputScalar("##delayInput", ImGuiMCP::ImGuiDataType_U32, &Settings::delay, &step))
+    static const ImGuiMCP::ImU8 step{1};
+    ImGuiMCP::SetNextItemWidth(150.0f);
+    if (ImGuiMCP::InputScalar("##delayInput", ImGuiMCP::ImGuiDataType_U8, &Settings::delay, &step))
     {
         Settings::UpdateDelay();
     }
+    ImGuiMCP::SameLine();
+    ImGuiMCP::TextUnformatted(Strings::Get("Seconds"));
     ImGuiMCP::SameLine();
     PrintHelpMarker(Strings::Get("DelayHelp"));
     ImGuiMCP::NewLine();

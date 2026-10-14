@@ -2,6 +2,7 @@
 
 #include <map>
 #include <string>
+#include "SKSEMenuFramework.h"
 
 class Settings
 {
@@ -15,7 +16,7 @@ class Settings
     static bool IsJsonValid(const std::string& fileName);
     static void UpdateDelay();
 
-    static inline unsigned delay{};
+    static inline ImGuiMCP::ImU8 delay{};
 
   private:
     Settings() = default;
