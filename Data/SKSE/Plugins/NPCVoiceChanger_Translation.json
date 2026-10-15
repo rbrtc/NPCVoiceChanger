@@ -1,0 +1,21 @@
+{
+	"ModName": "NPC Voice Changer",
+	"SettingsLabel": "Settings",
+	"Delay": "Delay",
+	"DelayHelp": "Loads the settings X seconds after loading a game.",
+	"Seconds": "Seconds",
+	"NPCSection": "NPC Selection",
+	"VoiceTypeSection": "Voice Type Selection",
+	"VoiceTypeDropdownHelp": "Select a voice type from the dropdown list.",
+	"SaveLabel": "Save",
+	"RefButton": "Get Selected NPC from the Console",
+	"RefHelp": "Get the selected reference from the console. Make sure you are selecting an NPC.",
+	"NoRefError": "No NPC selected",
+	"NotNPCError": "Selected ref is not an NPC!",
+	"NPCSelectedText": "selected.",
+	"VoiceTypeError": "No voice type selected",
+	"ModifiedSection": "Modified NPCs",
+	"CurrentVT": "Current voice type",
+	"Unknown": "Unknown",
+	"DynamicFormWarning": "Warning: the selected NPC is a dynamic form. Changes to its voice type will not be saved."
+}
